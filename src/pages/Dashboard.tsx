@@ -108,35 +108,39 @@ export default function Dashboard() {
           title="Weekly Distance Progress" 
           description="Distance covered per week over the last 8 weeks"
         >
-          <ChartContainer config={chartConfig} className="h-[200px]">
-            <AreaChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="week" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <defs>
-                <linearGradient id="distanceGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="distance"
-                stroke="hsl(var(--primary))"
-                fillOpacity={1}
-                fill="url(#distanceGradient)"
-                strokeWidth={2}
-              />
-            </AreaChart>
+          <ChartContainer config={chartConfig} className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={weeklyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={35}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <defs>
+                  <linearGradient id="distanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <Area
+                  type="monotone"
+                  dataKey="distance"
+                  stroke="hsl(var(--primary))"
+                  fillOpacity={1}
+                  fill="url(#distanceGradient)"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </ChartCard>
 
@@ -144,30 +148,34 @@ export default function Dashboard() {
           title="Pace Improvement" 
           description="Average pace per week (lower is better)"
         >
-          <ChartContainer config={chartConfig} className="h-[200px]">
-            <LineChart data={weeklyData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="week" 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-              />
-              <YAxis 
-                tick={{ fontSize: 12 }}
-                tickLine={false}
-                axisLine={false}
-                domain={['dataMin - 0.2', 'dataMax + 0.2']}
-              />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line
-                type="monotone"
-                dataKey="pace"
-                stroke="hsl(var(--secondary))"
-                strokeWidth={3}
-                dot={{ fill: "hsl(var(--secondary))", strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: "hsl(var(--secondary))", strokeWidth: 2 }}
-              />
-            </LineChart>
+          <ChartContainer config={chartConfig} className="h-[240px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={weeklyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis 
+                  dataKey="week" 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis 
+                  tick={{ fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={['dataMin - 0.2', 'dataMax + 0.2']}
+                  width={35}
+                />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line
+                  type="monotone"
+                  dataKey="pace"
+                  stroke="hsl(var(--secondary))"
+                  strokeWidth={3}
+                  dot={{ fill: "hsl(var(--secondary))", strokeWidth: 2, r: 4 }}
+                  activeDot={{ r: 6, stroke: "hsl(var(--secondary))", strokeWidth: 2 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </ChartCard>
       </div>
