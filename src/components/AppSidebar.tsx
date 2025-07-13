@@ -14,10 +14,9 @@ import {
   BarChart3, 
   Activity, 
   TrendingUp, 
-  Users, 
   Target,
-  Calendar,
   MapPin,
+  Calendar,
   Trophy
 } from "lucide-react";
 
@@ -32,7 +31,6 @@ const analysisItems = [
   { title: "Performance", url: "/performance", icon: Trophy },
   { title: "Routes", url: "/routes", icon: MapPin },
   { title: "Calendar", url: "/calendar", icon: Calendar },
-  { title: "Social", url: "/social", icon: Users },
 ];
 
 export function AppSidebar() {
