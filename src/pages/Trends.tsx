@@ -46,6 +46,11 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useActivities } from "@/hooks/useActivities";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { formatPace } from "@/lib/utils";
 
 // Mock data per analisi trend approfondite
 const performanceData = [
@@ -94,8 +99,118 @@ const chartConfig = {
 };
 
 export default function Trends() {
+  const { user } = useAuth();
+  const { activities, isLoadingActivities } = useActivities(user?.id || null, 'year');
   const [timeRange, setTimeRange] = useState("6months");
   const [metric, setMetric] = useState("distance");
+
+  // --- AGGREGAZIONE DATI REALI ---
+  // Raggruppa per mese (YYYY-MM)
+  const monthly: Record<string, { distance: number; time: number; runs: number; elevation: number; paceSum: number; paceCount: number }> = {};
+  activities.filter(a => a.type === "Run").forEach(a => {
+    const d = new Date(a.start_date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; // YYYY-MM
+    if (!monthly[key]) monthly[key] = { distance: 0, time: 0, runs: 0, elevation: 0, paceSum: 0, paceCount: 0 };
+    monthly[key].distance += a.distance / 1000;
+    monthly[key].time += a.moving_time / 60;
+    monthly[key].runs += 1;
+    monthly[key].elevation += a.total_elevation_gain || 0;
+    if (a.moving_time && a.distance) {
+      monthly[key].paceSum += a.moving_time / (a.distance / 1000);
+      monthly[key].paceCount += 1;
+    }
+  });
+  const monthsOrder = Object.keys(monthly).sort((a, b) => a.localeCompare(b));
+  const performanceData = monthsOrder.map(key => {
+    const d = new Date(key + "-01");
+    return {
+      month: format(d, "MMM yyyy", { locale: it }),
+      distance: Math.round(monthly[key].distance),
+      time: Math.round(monthly[key].time),
+      avgPace: monthly[key].paceCount ? (monthly[key].paceSum / monthly[key].paceCount) / 60 : 0,
+      runs: monthly[key].runs,
+      elevation: Math.round(monthly[key].elevation)
+    };
+  });
+
+  // --- CALCOLO PERSONAL RECORDS REALI ---
+  const prDistances = [
+    { label: "1K", meters: 1000 },
+    { label: "5K", meters: 5000 },
+    { label: "10K", meters: 10000 },
+    { label: "21K", meters: 21097 },
+    { label: "42K", meters: 42195 },
+  ];
+  function formatTime(seconds: number) {
+    if (seconds >= 3600) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = Math.round(seconds % 60);
+      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    } else {
+      const m = Math.floor(seconds / 60);
+      const s = Math.round(seconds % 60);
+      return `${m}:${s.toString().padStart(2, "0")}`;
+    }
+  }
+  const personalRecords = prDistances.map(pr => {
+    // Trova tutte le attività "Run" con distanza >= target (tolleranza 2%)
+    const runs = activities.filter(a => a.type === "Run" && a.distance >= pr.meters * 0.99);
+    let best = null;
+    runs.forEach(a => {
+      // Calcola tempo stimato per la distanza esatta (proporzionale)
+      const ratio = pr.meters / a.distance;
+      const estTime = a.moving_time * ratio;
+      if (!best || estTime < best.time) {
+        best = { time: estTime, date: a.start_date };
+      }
+    });
+    return best
+      ? {
+          distance: pr.label,
+          time: formatTime(best.time),
+          date: format(new Date(best.date), "yyyy-MM-dd"),
+          trend: "up", // TODO: calcolare trend reale se vuoi
+        }
+      : {
+          distance: pr.label,
+          time: "-",
+          date: "-",
+          trend: "down",
+        };
+  });
+
+  // Distribuzione dei ritmi (pace)
+  const paceBuckets = [
+    { label: "3:30-4:00", min: 3.5, max: 4.0 },
+    { label: "4:00-4:30", min: 4.0, max: 4.5 },
+    { label: "4:30-5:00", min: 4.5, max: 5.0 },
+    { label: "5:00-5:30", min: 5.0, max: 5.5 },
+    { label: "5:30+", min: 5.5, max: 99 }
+  ];
+  const paceDistribution = paceBuckets.map(b => {
+    const runs = activities.filter(a => a.type === "Run" && a.moving_time && a.distance && (a.moving_time / (a.distance / 1000)) / 60 >= b.min && (a.moving_time / (a.distance / 1000)) / 60 < b.max);
+    return {
+      pace: b.label,
+      runs: runs.length,
+      percentage: activities.length ? Math.round((runs.length / activities.length) * 100) : 0
+    };
+  });
+
+  // Intensità settimanale (mock se non ci sono dati sufficienti)
+  // TODO: puoi calcolare da activities se hai info su zone/FC
+  const weeklyIntensity = [
+    { week: "W1", easy: 15, moderate: 8, hard: 2 },
+    { week: "W2", easy: 18, moderate: 10, hard: 4 },
+    { week: "W3", easy: 16, moderate: 9, hard: 3 },
+    { week: "W4", easy: 20, moderate: 12, hard: 5 },
+    { week: "W5", easy: 22, moderate: 14, hard: 6 },
+    { week: "W6", easy: 19, moderate: 11, hard: 4 },
+  ];
+
+  if (isLoadingActivities) {
+    return <div className="flex items-center justify-center h-64"><span>Caricamento dati...</span></div>;
+  }
 
   return (
     <div className="space-y-6">

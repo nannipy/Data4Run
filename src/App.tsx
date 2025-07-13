@@ -11,6 +11,9 @@ import RoutesPage from "./pages/Routes";
 import Calendar from "./pages/Calendar";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
+import AuthCallback from "./pages/AuthCallback";
+
+
 
 const queryClient = new QueryClient();
 
@@ -28,6 +31,8 @@ const App = () => (
           <Route path="/performance" element={<Layout><Performance /></Layout>} />
           <Route path="/routes" element={<Layout><RoutesPage /></Layout>} />
           <Route path="/calendar" element={<Layout><Calendar /></Layout>} />
+          <Route path="/auth/strava/callback" element={<AuthCallback />} />
+  
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

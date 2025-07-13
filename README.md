@@ -1,73 +1,207 @@
-# Welcome to your Lovable project
+# Strava Run Analyzer
 
-## Project info
+Un'applicazione web full-stack per analizzare le performance di corsa utilizzando i dati di Strava.
 
-**URL**: https://lovable.dev/projects/4c26c0af-0e01-462e-b6c1-ef6e71c7afa8
+## 🚀 Caratteristiche
 
-## How can I edit this code?
+- **Autenticazione Strava**: Connessione sicura tramite OAuth2
+- **Sincronizzazione Dati**: Download automatico delle attività da Strava
+- **Dashboard Interattivo**: Visualizzazione delle metriche chiave e tendenze
+- **Elenco Attività**: Tabella completa con filtri e ricerca
+- **Analisi Dettagliata**: Grafici e statistiche per ogni attività
+- **Interfaccia Moderna**: UI responsive con Tailwind CSS e Radix UI
 
-There are several ways of editing your application.
+## 🛠️ Stack Tecnologico
 
-**Use Lovable**
+### Frontend
+- **React 18** con TypeScript
+- **Vite** per il build e development
+- **Tailwind CSS** per lo styling
+- **Radix UI** per i componenti
+- **Recharts** per i grafici
+- **React Query** per la gestione dello stato
+- **React Router** per la navigazione
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/4c26c0af-0e01-462e-b6c1-ef6e71c7afa8) and start prompting.
+### Backend
+- **FastAPI** (Python)
+- **SQLAlchemy** per l'ORM
+- **SQLite** per il database
+- **Stravalib** per l'integrazione con Strava
+- **Pandas/NumPy** per l'analisi dei dati
 
-Changes made via Lovable will be committed automatically to this repo.
+## 📋 Prerequisiti
 
-**Use your preferred IDE**
+- Node.js 18+ e npm
+- Python 3.11+
+- Account Strava Developer
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🔧 Configurazione
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Setup Strava Developer
 
-Follow these steps:
+1. Vai su [Strava API Settings](https://www.strava.com/settings/api)
+2. Crea una nuova applicazione
+3. Imposta l'URL di redirect a `http://localhost:3000/auth/callback`
+4. Prendi nota di `Client ID` e `Client Secret`
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 2. Configurazione Ambiente
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Crea un file `.env` nella root del progetto:
 
-# Step 3: Install the necessary dependencies.
-npm i
+```env
+# Strava API
+STRAVA_CLIENT_ID=your_client_id
+STRAVA_CLIENT_SECRET=your_client_secret
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Frontend
+VITE_API_URL=http://localhost:8000
+```
+
+### 3. Installazione Dipendenze
+
+```bash
+# Frontend
+npm install
+
+# Backend
+cd backend
+pip install -r requirements.txt
+```
+
+## 🚀 Avvio dell'Applicazione
+
+### Opzione 1: Docker Compose (Raccomandato)
+
+```bash
+docker-compose up --build
+```
+
+L'applicazione sarà disponibile su:
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000
+- API Docs: http://localhost:8000/docs
+
+### Opzione 2: Sviluppo Locale
+
+#### Backend
+```bash
+cd backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Frontend
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+## 📱 Utilizzo
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Accesso**: Vai su http://localhost:3000
+2. **Autenticazione**: Clicca "Connetti con Strava" e autorizza l'applicazione
+3. **Sincronizzazione**: Le tue attività verranno scaricate automaticamente
+4. **Esplorazione**: Naviga tra Dashboard, Attività e altre sezioni
 
-**Use GitHub Codespaces**
+## 🗂️ Struttura del Progetto
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+```
+run-insights-unleashed/
+├── src/                    # Frontend React
+│   ├── components/         # Componenti UI
+│   ├── hooks/             # Custom hooks
+│   ├── lib/               # Utilità e API
+│   ├── pages/             # Pagine dell'applicazione
+│   └── ...
+├── backend/               # Backend FastAPI
+│   ├── app/
+│   │   ├── api/           # Endpoint API
+│   │   ├── core/          # Configurazione
+│   │   ├── db/            # Database
+│   │   ├── models/        # Modelli SQLAlchemy
+│   │   ├── schemas/       # Schemi Pydantic
+│   │   ├── services/      # Logica di business
+│   │   └── utils/         # Utilità
+│   └── requirements.txt
+├── docker-compose.yml
+└── README.md
+```
 
-## What technologies are used for this project?
+## 🔌 API Endpoints
 
-This project is built with:
+### Autenticazione
+- `GET /auth/strava/authorize` - URL di autorizzazione Strava
+- `GET /auth/strava/callback` - Callback OAuth2
+- `GET /auth/user/{user_id}` - Dati utente
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Attività
+- `POST /activities/sync/{user_id}` - Sincronizza attività
+- `GET /activities/{user_id}` - Lista attività
+- `GET /activities/{user_id}/activity/{activity_id}` - Dettaglio attività
+- `GET /activities/{user_id}/stats` - Statistiche utente
+- `GET /activities/{user_id}/trends` - Tendenze temporali
 
-## How can I deploy this project?
+## 🧪 Testing
 
-Simply open [Lovable](https://lovable.dev/projects/4c26c0af-0e01-462e-b6c1-ef6e71c7afa8) and click on Share -> Publish.
+```bash
+# Backend
+cd backend
+pytest
 
-## Can I connect a custom domain to my Lovable project?
+# Frontend
+npm test
+```
 
-Yes, you can!
+## 📊 Funzionalità Implementate
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### ✅ Fase 1: Setup e Core Sync
+- [x] Configurazione FastAPI
+- [x] Autenticazione OAuth2 con Strava
+- [x] Modelli database SQLAlchemy
+- [x] Sincronizzazione attività base
+- [x] Frontend React con TypeScript
+- [x] Pagina di login/connessione Strava
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+### ✅ Fase 2: Dashboard e Elenco Attività
+- [x] Dashboard con metriche aggregate
+- [x] Grafici di tendenza con Recharts
+- [x] Tabella attività con filtri
+- [x] Paginazione e ricerca
+
+### 🔄 Fase 3: Dettaglio Attività (In Corso)
+- [ ] Mappa interattiva del percorso
+- [ ] Grafici dettagliati (ritmo, FC, cadenza)
+- [ ] Analisi dei laps/split
+- [ ] Analisi delle zone
+
+### 📋 Fase 4: Analisi Avanzata (Pianificata)
+- [ ] Comparazione attività
+- [ ] Record personali
+- [ ] Analisi delle tendenze avanzate
+- [ ] Impostazioni utente
+
+## 🤝 Contribuire
+
+1. Fork il progetto
+2. Crea un branch per la feature (`git checkout -b feature/AmazingFeature`)
+3. Commit le modifiche (`git commit -m 'Add some AmazingFeature'`)
+4. Push al branch (`git push origin feature/AmazingFeature`)
+5. Apri una Pull Request
+
+## 📄 Licenza
+
+Questo progetto è sotto licenza MIT. Vedi il file `LICENSE` per i dettagli.
+
+## 🆘 Supporto
+
+Per problemi o domande:
+1. Controlla la documentazione API su http://localhost:8000/docs
+2. Apri una issue su GitHub
+3. Controlla i log del backend per errori dettagliati
+
+## 🔮 Roadmap
+
+- [ ] Integrazione con altri servizi (Garmin, TrainingPeaks)
+- [ ] Analisi dei segmenti Strava
+- [ ] Piani di allenamento personalizzati
+- [ ] Notifiche e alert
+- [ ] Esportazione dati in CSV/PDF
+- [ ] App mobile (React Native)

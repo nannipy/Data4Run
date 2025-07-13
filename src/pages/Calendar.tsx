@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useActivities } from "@/hooks/useActivities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,27 +19,17 @@ import {
   Activity,
   Clock,
   MapPin,
-  Target,
+  Bike,
   Zap,
   Timer,
   TrendingUp,
+  Heart
 } from "lucide-react";
+import { formatDistance, formatDuration, formatPace } from "@/lib/utils";
 
-// Mock data per il calendario
 const currentDate = new Date();
 const currentMonth = currentDate.getMonth();
 const currentYear = currentDate.getFullYear();
-
-const activities = [
-  { date: "2024-01-15", type: "run", name: "Morning Run", distance: 8.5, duration: 35 },
-  { date: "2024-01-13", type: "workout", name: "Interval Training", distance: 6.0, duration: 28 },
-  { date: "2024-01-12", type: "long", name: "Long Weekend Run", distance: 15.2, duration: 68 },
-  { date: "2024-01-10", type: "recovery", name: "Recovery Jog", distance: 5.0, duration: 25 },
-  { date: "2024-01-08", type: "speed", name: "Track Session", distance: 7.0, duration: 32 },
-  { date: "2024-01-06", type: "run", name: "Easy Run", distance: 10.0, duration: 42 },
-  { date: "2024-01-04", type: "rest", name: "Rest Day", distance: 0, duration: 0 },
-  { date: "2024-01-02", type: "cross", name: "Cross Training", distance: 0, duration: 45 },
-];
 
 const plannedWorkouts = [
   { date: "2024-01-17", type: "tempo", name: "Tempo Run", plannedDistance: 8, plannedDuration: 36 },
@@ -74,7 +66,24 @@ const getFirstDayOfMonth = (month: number, year: number) => {
   return new Date(year, month, 1).getDay();
 };
 
+const getActivityIcon = (type: string) => {
+  switch (type?.toLowerCase()) {
+    case "run":
+      return <Activity className="inline h-4 w-4 mr-1 text-primary" />;
+    case "walk":
+      return <Activity className="inline h-4 w-4 mr-1 text-success" />;
+    case "workout":
+      return <Zap className="inline h-4 w-4 mr-1 text-warning" />;
+    case "tennis":
+      return <Heart className="inline h-4 w-4 mr-1 text-pink-500" />;
+    default:
+      return <Activity className="inline h-4 w-4 mr-1 text-muted-foreground" />;
+  }
+};
+
 export default function Calendar() {
+  const { user } = useAuth();
+  const { activities, isLoadingActivities, activitiesError } = useActivities(user?.id || null);
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const [view, setView] = useState("month");
@@ -88,8 +97,15 @@ export default function Calendar() {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const getActivitiesForDate = (day: number) => {
-    const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return activities.filter(activity => activity.date === dateStr);
+    // Filtra le attività reali per data (start_date in formato ISO)
+    return activities.filter(activity => {
+      if (!activity.start_date) return false;
+      const activityDate = new Date(activity.start_date);
+      const y = activityDate.getFullYear();
+      const m = activityDate.getMonth();
+      const d = activityDate.getDate();
+      return y === selectedYear && m === selectedMonth && d === day;
+    });
   };
 
   const getPlannedWorkoutsForDate = (day: number) => {
@@ -142,13 +158,15 @@ export default function Calendar() {
           </div>
           <div className="space-y-1">
             {dayActivities.map((activity, index) => (
-              <div key={index} className={`w-full h-2 rounded ${getActivityColor(activity.type)}`} 
-                   title={`${activity.name} - ${activity.distance}km`}>
+              <div key={index} className="flex items-center gap-1" title={`${activity.name} - ${activity.distance}m`}>
+                {getActivityIcon(activity.type)}
+                <span className="truncate text-xs">{activity.name}</span>
               </div>
             ))}
             {plannedWorkoutsForDay.map((workout, index) => (
-              <div key={index} className={`w-full h-2 rounded border-2 border-dashed ${getActivityColor(workout.type)}`} 
-                   title={`Planned: ${workout.name} - ${workout.plannedDistance}km`}>
+              <div key={index} className="flex items-center gap-1 opacity-70" title={`Planned: ${workout.name} - ${workout.plannedDistance}km`}>
+                {getActivityIcon(workout.type)}
+                <span className="truncate text-xs italic">{workout.name}</span>
               </div>
             ))}
           </div>
@@ -158,6 +176,29 @@ export default function Calendar() {
     
     return days;
   };
+
+  // Calcola le stats del mese corrente
+  const monthActivities = activities.filter(activity => {
+    if (!activity.start_date) return false;
+    const d = new Date(activity.start_date);
+    return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+  });
+  const totalDistance = monthActivities.reduce((sum, a) => sum + (a.distance || 0), 0);
+  const totalTime = monthActivities.reduce((sum, a) => sum + (a.moving_time || 0), 0);
+  const numRuns = monthActivities.length;
+  const numBike = monthActivities.filter(a => a.type && a.type.toLowerCase() === 'ride').length;
+  const numTennis = monthActivities.filter(a => a.type && a.type.toLowerCase() === 'workout').length;
+  const runActivities = monthActivities.filter(a => a.type && a.type.toLowerCase() === 'run');
+  const totalRunDistance = runActivities.reduce((sum, a) => sum + (a.distance || 0), 0);
+  const totalRunTime = runActivities.reduce((sum, a) => sum + (a.moving_time || 0), 0);
+  const avgPace = totalRunDistance > 0 ? (totalRunTime / 60) / (totalRunDistance / 1000) : 0;
+  
+  if (isLoadingActivities) {
+    return <div className="flex items-center justify-center h-64"><span>Caricamento attività...</span></div>;
+  }
+  if (activitiesError) {
+    return <div className="flex items-center justify-center h-64 text-destructive"><span>Errore nel caricamento delle attività</span></div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -265,7 +306,7 @@ export default function Calendar() {
               {plannedWorkouts.slice(0, 4).map((workout, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
                   <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${getActivityColor(workout.type)}`} />
+                    {getActivityIcon(workout.type)}
                     <div>
                       <p className="font-medium">{workout.name}</p>
                       <p className="text-sm text-muted-foreground">
@@ -296,29 +337,43 @@ export default function Calendar() {
                 <div className="flex items-center justify-center mb-2">
                   <MapPin className="h-6 w-6 text-primary" />
                 </div>
-                <div className="text-2xl font-bold">72km</div>
+                <div className="text-2xl font-bold">{formatDistance(totalDistance)}km</div>
                 <div className="text-sm text-muted-foreground">Distance</div>
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center mb-2">
                   <Clock className="h-6 w-6 text-secondary" />
                 </div>
-                <div className="text-2xl font-bold">5h 12m</div>
+                <div className="text-2xl font-bold">{formatDuration(totalTime)}</div>
                 <div className="text-sm text-muted-foreground">Time</div>
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center mb-2">
                   <Activity className="h-6 w-6 text-success" />
                 </div>
-                <div className="text-2xl font-bold">8</div>
-                <div className="text-sm text-muted-foreground">Runs</div>
+                <div className="text-2xl font-bold">{numRuns}</div>
+                <div className="text-sm text-muted-foreground">Activities</div>
               </div>
               <div className="text-center p-3 bg-muted/30 rounded-lg">
                 <div className="flex items-center justify-center mb-2">
                   <Zap className="h-6 w-6 text-warning" />
                 </div>
-                <div className="text-2xl font-bold">4:15</div>
+                <div className="text-2xl font-bold">{avgPace ? formatPace(avgPace) : "-"}</div>
                 <div className="text-sm text-muted-foreground">Avg Pace</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center mb-2">
+                  <Bike className="h-6 w-6 text-info" />
+                </div>
+                <div className="text-2xl font-bold">{numBike}</div>
+                <div className="text-sm text-muted-foreground">Bike</div>
+              </div>
+              <div className="text-center p-3 bg-muted/30 rounded-lg">
+                <div className="flex items-center justify-center mb-2">
+                  <Zap className="h-6 w-6 text-yellow-500" />
+                </div>
+                <div className="text-2xl font-bold">{numTennis}</div>
+                <div className="text-sm text-muted-foreground">Tennis</div>
               </div>
             </div>
           </CardContent>
