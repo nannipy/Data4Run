@@ -7,6 +7,8 @@ from app.schemas.user import UserCreate, UserUpdate
 from typing import Dict, Any
 from datetime import datetime
 
+# Set per tenere traccia dei code già processati
+processed_codes = set()
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 strava_service = StravaService()
@@ -29,6 +31,16 @@ async def strava_callback(
 ):
     """Gestisce il callback di autorizzazione di Strava"""
     try:
+        print(f"CODE RICEVUTO DAL FRONTEND: {code}")
+        
+        # Controlla se il code è già stato processato
+        if code in processed_codes:
+            print(f"CODE GIÀ PROCESSATO: {code}")
+            raise HTTPException(status_code=400, detail="Authorization code already used")
+        
+        # Marca il code come processato
+        processed_codes.add(code)
+        
         # Scambia il codice con i token
         token_response = strava_service.exchange_code_for_token(code)
         
@@ -70,7 +82,13 @@ async def strava_callback(
             "last_name": user.last_name
         }
         
+    except HTTPException as http_exc:
+        print("HTTPException:", http_exc.detail)
+        raise http_exc
     except Exception as e:
+        print("ERRORE CALLBACK STRAVA:", e)
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
 
 
@@ -80,7 +98,8 @@ async def get_user(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+    print("USER TROVATO:", user)
+    print("CAMPIDB:", user.id, user.strava_id, user.first_name, user.last_name, user.profile_picture_url, user.last_sync_timestamp)
     return {
         "id": user.id,
         "strava_id": user.strava_id,

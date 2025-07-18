@@ -76,6 +76,7 @@ export interface SyncResult {
 class ApiService {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
+    console.log('[API] Request:', url, options);
     const response = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
@@ -84,11 +85,20 @@ class ApiService {
       ...options,
     });
 
+    let responseBody;
+    try {
+      responseBody = await response.clone().json();
+    } catch (e) {
+      responseBody = null;
+    }
+    console.log('[API] Response:', response.status, response.statusText, responseBody);
+
     if (!response.ok) {
-      throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+      console.error('[API] Error:', response.status, response.statusText, responseBody);
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${JSON.stringify(responseBody)}`);
     }
 
-    return response.json();
+    return responseBody;
   }
 
   // Auth endpoints
@@ -103,6 +113,7 @@ class ApiService {
     first_name: string;
     last_name: string;
   }> {
+    console.log('[API] handleStravaCallback: code =', code);
     return this.request(`/auth/strava/callback?code=${code}`);
   }
 

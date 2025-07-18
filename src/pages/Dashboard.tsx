@@ -6,8 +6,6 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -22,23 +20,20 @@ import {
   Clock,
   MapPin,
   Zap,
-  Target,
-  TrendingUp,
-  Calendar,
   Trophy,
   Loader2,
   RefreshCw,
-  Plus
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivities } from "@/hooks/useActivities";
 import { Button } from "@/components/ui/button";
-import { formatDistance, formatDuration, formatPace } from "@/lib/utils"
+import { formatDistance, formatDuration, formatPace, haversine, formatRecordTime, getBestTimeForDistance } from "@/lib/utils"
 import { format, addMonths, subMonths } from "date-fns";
 import { it } from "date-fns/locale";
 import React, { useRef } from "react";
 import { toast } from "@/hooks/use-toast";
 import * as toGeoJSON from "@tmcw/togeojson";
+import { geojsonToStreams } from "@/lib/geojsonToStreams";
 
 const chartConfig = {
   distance: {
@@ -52,7 +47,7 @@ const chartConfig = {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, isLoadingUser, userError } = useAuth();
   const { 
     activities, 
     statsRun,
@@ -60,23 +55,9 @@ export default function Dashboard() {
     trendsRun,
     isLoadingTrendsRun,
     syncActivities,
-    syncActivitiesSmart,
-    syncActivitiesExtend,
     isSyncing
   } = useActivities(user?.id || null, 'year');
   
-  const handleSync = async (months: number = 6) => {
-    try {
-      // Sincronizza le attività degli ultimi X mesi (default 6 mesi)
-      const dateFrom = new Date();
-      dateFrom.setMonth(dateFrom.getMonth() - months);
-      const afterDate = dateFrom.toISOString();
-      
-      await syncActivities(afterDate);
-    } catch (error) {
-      console.error('Error syncing activities:', error);
-    }
-  };
 
   const handleSyncAll = async () => {
     try {
@@ -125,50 +106,6 @@ export default function Dashboard() {
   }).filter(Boolean);
 
   // --- RECORD PERSONALI ---
-  // Funzione per trovare il miglior tempo su una distanza, considerando anche i lap
-  function getBestTimeForDistanceSmart(activities, targetDistance) {
-    const margin = targetDistance * 0.02;
-    let best = null;
-    let fromLap = false;
-    activities.filter(a => a.type === "Run").forEach(a => {
-      // 1. Prova con i lap, se presenti
-      if (a.laps && Array.isArray(a.laps) && a.laps.length > 0) {
-        a.laps.forEach(lap => {
-          if (
-            lap.distance >= targetDistance - margin &&
-            lap.distance <= targetDistance + margin &&
-            lap.moving_time > 0
-          ) {
-            if (!best || lap.moving_time < best.moving_time) {
-              best = {
-                moving_time: lap.moving_time,
-                start_date: lap.start_date || a.start_date,
-                activity: a,
-                fromLap: true
-              };
-              fromLap = true;
-            }
-          }
-        });
-      }
-      // 2. Fallback: attività intera
-      if (
-        a.distance >= targetDistance - margin &&
-        a.distance <= targetDistance + margin &&
-        a.moving_time > 0 &&
-        (!best || a.moving_time < best.moving_time)
-      ) {
-        best = {
-          moving_time: a.moving_time,
-          start_date: a.start_date,
-          activity: a,
-          fromLap: false
-        };
-      }
-    });
-    return best;
-  }
-
   // Miglior tempo su distanze classiche
   const prDistances = [
     { label: "1 km", value: 1000 },
@@ -179,7 +116,7 @@ export default function Dashboard() {
   ];
 
   const personalBests = prDistances.map(d => {
-    const best = getBestTimeForDistanceSmart(activities, d.value);
+    const best = getBestTimeForDistance(activities, d.value);
     return best
       ? {
           label: d.label,
@@ -211,19 +148,9 @@ export default function Dashboard() {
     { label: "Mezza maratona", value: 21097 },
   ];
 
-  // Funzione per formattare il tempo in stile mm:ss o hh:mm:ss
-  function formatRecordTime(seconds) {
-    if (!seconds || isNaN(seconds) || !isFinite(seconds)) return "–";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.round(seconds % 60);
-    if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
-
   // Nuova lista record all time con logica "smart"
   const allTimeRecords = allTimeDistances.map(d => {
-    const best = getBestTimeForDistanceSmart(activities, d.value);
+    const best = getBestTimeForDistance(activities, d.value);
     return best
       ? {
           label: d.label,
@@ -239,21 +166,13 @@ export default function Dashboard() {
   const hasApproxRecords = allTimeRecords.some(r => r.time !== "–" && !r.fromLap);
 
   const fileInputRef = useRef(null);
+  const [importLoading, setImportLoading] = React.useState(false);
 
   // Funzione di utilità per calcolare distanza totale da una traccia GeoJSON
   function getTotalDistance(coords) {
     let dist = 0;
     for (let i = 1; i < coords.length; i++) {
-      const [lon1, lat1] = coords[i - 1];
-      const [lon2, lat2] = coords[i];
-      // Haversine formula
-      const R = 6371000;
-      const toRad = x => (x * Math.PI) / 180;
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      dist += R * c;
+      dist += haversine(coords[i - 1], coords[i]);
     }
     return dist;
   }
@@ -262,6 +181,7 @@ export default function Dashboard() {
   const handleImportGpx = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+    setImportLoading(true);
     try {
       const text = await file.text();
       const parser = new DOMParser();
@@ -275,6 +195,15 @@ export default function Dashboard() {
       const startDate = times[0] ? new Date(times[0]) : null;
       const endDate = times[times.length - 1] ? new Date(times[times.length - 1]) : null;
       const movingTime = startDate && endDate ? Math.round((endDate.getTime() - startDate.getTime()) / 1000) : null;
+      // Conversione in streams
+      const streams = geojsonToStreams(geojson);
+      // Riepilogo dati trovati
+      const info: Record<string, boolean> = streams?._info || {};
+      const infoMsg = `Dati importati: ` +
+        `${info["quota"] ? '✓ Quota' : '✗ Quota'} ` +
+        `${info["fc"] ? '✓ FC' : '✗ FC'} ` +
+        `${info["cadenza"] ? '✓ Cadenza' : '✗ Cadenza'} ` +
+        `${info["potenza"] ? '✓ Potenza' : '✗ Potenza'}`;
       // Matching: cerca attività esistente per data e distanza simile
       const match = activities.find(a => {
         if (!a.start_date) return false;
@@ -287,15 +216,17 @@ export default function Dashboard() {
         // Se il GPX ha più dati (es. traccia, lap), aggiorna l'attività
         let updated = false;
         if (!match.detailed_data && coords.length > 10) {
-          match.detailed_data = geojson;
-          updated = true;
+          if (streams) {
+            match.detailed_data = JSON.stringify(streams);
+            updated = true;
+          }
         }
         if (!match.moving_time && movingTime) {
           match.moving_time = movingTime;
           updated = true;
         }
         if (updated) {
-          toast({ title: "Attività aggiornata", description: "Dati dettagliati aggiunti all'attività esistente." });
+          toast({ title: "Attività aggiornata", description: infoMsg });
         } else {
           toast({ title: "Nessuna modifica", description: "L'attività era già completa o identica." });
         }
@@ -313,17 +244,37 @@ export default function Dashboard() {
           start_date: startDate ? startDate.toISOString() : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          detailed_data: geojson,
+          detailed_data: JSON.stringify(streams),
         };
-        // Aggiorna stato locale (solo esempio, in realtà dovresti salvarla su backend)
         activities.push(newActivity);
-        toast({ title: "Nuova attività importata", description: `Attività "${newActivity.name}" aggiunta.` });
+        toast({ title: "Nuova attività importata", description: infoMsg });
       }
     } catch (e) {
       toast({ title: "Errore importazione GPX", description: e.message || "Errore sconosciuto", variant: "destructive" });
     }
+    setImportLoading(false);
     event.target.value = null;
   };
+
+  if (isLoadingUser) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+        <p>Caricamento dati utente...</p>
+      </div>
+    );
+  }
+
+  if (userError && !user) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '2rem', color: 'red' }}>
+        <p>Errore nel caricamento dei dati utente. Riprova più tardi.</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   if (isLoadingStatsRun || isLoadingTrendsRun) {
     return (
@@ -353,60 +304,6 @@ export default function Dashboard() {
         </div>
         <div className="flex gap-2 flex-wrap">
           <Button 
-            onClick={() => handleSync(6)} 
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sincronizzazione...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync 6 mesi
-              </>
-            )}
-          </Button> 
-          <Button 
-            onClick={syncActivitiesSmart} 
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sincronizzazione...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Sync Smart
-              </>
-            )}
-          </Button>
-          <Button 
-            onClick={() => syncActivitiesExtend(12)} 
-            disabled={isSyncing}
-            variant="outline"
-            size="sm"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sincronizzazione...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Estendi 1 anno
-              </>
-            )}
-          </Button>
-          <Button 
             onClick={handleSyncAll} 
             disabled={isSyncing}
             variant="outline"
@@ -420,7 +317,7 @@ export default function Dashboard() {
             ) : (
               <>
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Sync Tutto
+                Sync Strava
               </>
             )}
           </Button>
@@ -428,8 +325,16 @@ export default function Dashboard() {
             variant="outline"
             size="sm"
             onClick={() => fileInputRef.current && fileInputRef.current.click()}
+            disabled={importLoading}
           >
-            Importa GPX
+            {importLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Importazione...
+              </>
+            ) : (
+              <>Importa GPX</>
+            )}
           </Button>
           <input
             type="file"

@@ -27,8 +27,9 @@ async def sync_activities(
     
     try:
         # Aggiorna il token se necessario
-        if not strava_service.refresh_access_token(user):
-            raise HTTPException(status_code=401, detail="Failed to refresh access token")
+        if not strava_service.refresh_access_token(user, db):
+            print(f"[SYNC][ERRORE] Refresh token fallito per user_id={user_id}")
+            raise HTTPException(status_code=401, detail="Token Strava scaduto o non valido. Ricollega il tuo account Strava dalle impostazioni.")
         
         # Sincronizza le attività
         sync_result = strava_service.sync_user_activities(db, user, after_date)
@@ -54,8 +55,9 @@ async def sync_activities_smart(
     
     try:
         # Aggiorna il token se necessario
-        if not strava_service.refresh_access_token(user):
-            raise HTTPException(status_code=401, detail="Failed to refresh access token")
+        if not strava_service.refresh_access_token(user, db):
+            print(f"[SYNC][ERRORE] Refresh token fallito per user_id={user_id}")
+            raise HTTPException(status_code=401, detail="Token Strava scaduto o non valido. Ricollega il tuo account Strava dalle impostazioni.")
         
         # Trova l'attività più vecchia nel database
         oldest_activity = db.query(Activity).filter(
@@ -98,8 +100,9 @@ async def sync_activities_extend(
     
     try:
         # Aggiorna il token se necessario
-        if not strava_service.refresh_access_token(user):
-            raise HTTPException(status_code=401, detail="Failed to refresh access token")
+        if not strava_service.refresh_access_token(user, db):
+            print(f"[SYNC][ERRORE] Refresh token fallito per user_id={user_id}")
+            raise HTTPException(status_code=401, detail="Token Strava scaduto o non valido. Ricollega il tuo account Strava dalle impostazioni.")
         
         # Trova l'attività più vecchia nel database
         oldest_activity = db.query(Activity).filter(

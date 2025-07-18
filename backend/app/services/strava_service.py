@@ -44,11 +44,13 @@ class StravaService:
     
     def sync_user_activities(self, db: Session, user: User, after_date: Optional[datetime] = None) -> Dict[str, Any]:
         """Sincronizza le attività dell'utente da Strava"""
+        print(f"[SYNC] Inizio sync per user_id={user.id}, after_date={after_date}")
         self.client.access_token = user.access_token
         
         try:
             # Ottieni le attività
             activities = list(self.client.get_activities(after=after_date))
+            print(f"[SYNC] Recuperate {len(activities)} attività da Strava")
             
             synced_count = 0
             updated_count = 0
@@ -63,11 +65,13 @@ class StravaService:
                     # Aggiorna l'attività esistente
                     self._update_activity_from_strava(existing_activity, strava_activity)
                     updated_count += 1
+                    print(f"[SYNC] Aggiornata attività esistente: {strava_activity.id}")
                 else:
                     # Crea una nuova attività
                     new_activity = self._create_activity_from_strava(strava_activity, user.id)
                     db.add(new_activity)
                     synced_count += 1
+                    print(f"[SYNC] Aggiunta nuova attività: {strava_activity.id}")
                 
                 # Sincronizza i laps se disponibili
                 if hasattr(strava_activity, 'laps') and strava_activity.laps:
@@ -76,6 +80,7 @@ class StravaService:
             # Aggiorna il timestamp di sincronizzazione
             user.last_sync_timestamp = datetime.utcnow()
             db.commit()
+            print(f"[SYNC] Commit completato. Nuove: {synced_count}, Aggiornate: {updated_count}")
             
             return {
                 'synced_count': synced_count,
@@ -85,9 +90,11 @@ class StravaService:
             
         except RateLimitExceeded:
             db.rollback()
+            print("[SYNC][ERRORE] Rate limit exceeded per Strava API")
             raise Exception("Rate limit exceeded for Strava API")
         except Exception as e:
             db.rollback()
+            print(f"[SYNC][ERRORE] Errore durante la sync: {str(e)}")
             raise Exception(f"Error syncing activities: {str(e)}")
     
     def _create_activity_from_strava(self, strava_activity, user_id: int) -> Activity:
@@ -161,22 +168,24 @@ class StravaService:
         except Exception:
             return None
     
-    def refresh_access_token(self, user: User) -> bool:
-        """Aggiorna il token di accesso se scaduto"""
+    def refresh_access_token(self, user: User, db: Session = None) -> bool:
+        """Aggiorna il token di accesso se scaduto e salva sempre i nuovi valori nel DB"""
         if user.expires_at > datetime.utcnow():
             return True
-        
         try:
             refresh_response = self.client.refresh_access_token(
                 client_id=settings.strava_client_id,
                 client_secret=settings.strava_client_secret,
                 refresh_token=user.refresh_token
             )
-            
             user.access_token = refresh_response['access_token']
             user.refresh_token = refresh_response['refresh_token']
-            user.expires_at = datetime.utcnow() + timedelta(seconds=refresh_response['expires_at'])
-            
+            # expires_at di Strava è un timestamp UNIX, lo convertiamo in datetime
+            user.expires_at = datetime.utcfromtimestamp(refresh_response['expires_at'])
+            if db is not None:
+                db.commit()
+            print(f"[TOKEN] Access token aggiornato per user_id={user.id}")
             return True
-        except Exception:
+        except Exception as e:
+            print(f"[TOKEN][ERRORE] Errore durante il refresh del token: {str(e)}")
             return False 

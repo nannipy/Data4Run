@@ -50,7 +50,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useActivities } from "@/hooks/useActivities";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { formatPace } from "@/lib/utils";
+import { formatPace, formatRecordTime, getBestTimeForDistance } from "@/lib/utils";
 
 // Mock data per analisi trend approfondite
 const performanceData = [
@@ -141,35 +141,13 @@ export default function Trends() {
     { label: "21K", meters: 21097 },
     { label: "42K", meters: 42195 },
   ];
-  function formatTime(seconds: number) {
-    if (seconds >= 3600) {
-      const h = Math.floor(seconds / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      const s = Math.round(seconds % 60);
-      return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
-    } else {
-      const m = Math.floor(seconds / 60);
-      const s = Math.round(seconds % 60);
-      return `${m}:${s.toString().padStart(2, "0")}`;
-    }
-  }
   const personalRecords = prDistances.map(pr => {
-    // Trova tutte le attività "Run" con distanza >= target (tolleranza 2%)
-    const runs = activities.filter(a => a.type === "Run" && a.distance >= pr.meters * 0.99);
-    let best = null;
-    runs.forEach(a => {
-      // Calcola tempo stimato per la distanza esatta (proporzionale)
-      const ratio = pr.meters / a.distance;
-      const estTime = a.moving_time * ratio;
-      if (!best || estTime < best.time) {
-        best = { time: estTime, date: a.start_date };
-      }
-    });
+    const best = getBestTimeForDistance(activities, pr.meters);
     return best
       ? {
           distance: pr.label,
-          time: formatTime(best.time),
-          date: format(new Date(best.date), "yyyy-MM-dd"),
+          time: formatRecordTime(best.moving_time),
+          date: format(new Date(best.start_date), "yyyy-MM-dd"),
           trend: "up", // TODO: calcolare trend reale se vuoi
         }
       : {

@@ -53,6 +53,13 @@ function getLocalStats(activities: any[]) {
   return { total_activities, total_distance, total_time, total_elevation, average_pace, num_bike, num_tennis };
 }
 
+// Utility per mappare il tipo attività
+const mapActivityType = (type: string) => {
+  if (!type) return "";
+  if (type.toLowerCase() === "workout") return "tennis";
+  return type.toLowerCase();
+};
+
 export default function Activities() {
   const { user } = useAuth();
   const {
@@ -114,33 +121,25 @@ export default function Activities() {
     refetchTrends();
   };
 
-  const handleSync = async () => {
-    try {
-      // Sincronizza le attività degli ultimi 2 mesi
-      const twoMonthsAgo = new Date();
-      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
-      const afterDate = twoMonthsAgo.toISOString();
-      
-      await syncActivities(afterDate);
-      // Aggiorna stats e trends
-      refetchStats();
-      refetchTrends();
-    } catch (error) {
-      console.error('Error syncing activities:', error);
-    }
-  };
 
   const filteredActivities = (allLoaded ? allActivities : pagedActivities).filter((activity) => {
+    const mappedType = mapActivityType(activity.type);
     const matchesSearch = activity.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = typeFilter === "all" || activity.type.toLowerCase().includes(typeFilter.toLowerCase());
+    // Se il filtro è "tennis", includi solo workout con "tennis" nel nome
+    const matchesType = typeFilter === "all" ||
+      (typeFilter === "tennis"
+        ? (activity.type && activity.type.toLowerCase() === "workout" && activity.name.toLowerCase().includes("tennis"))
+        : mappedType.includes(typeFilter.toLowerCase()));
     return matchesSearch && matchesType;
   });
 
   const getTypeColor = (type: string) => {
-    switch (type.toLowerCase()) {
+    const mappedType = mapActivityType(type);
+    switch (mappedType) {
       case "run": return "bg-primary text-primary-foreground";
       case "ride": return "bg-secondary text-secondary-foreground";
       case "walk": return "bg-success text-success-foreground";
+      case "tennis": return "bg-warning text-warning-foreground";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -162,8 +161,8 @@ export default function Activities() {
   if (isLoadingActivities || isLoadingStats) {
     return (
       <div className="space-y-6">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-foreground">Attività</h1>
+        <div className="space-y-2 ">
+          <h1 className="text-3xl font-bold text-foreground ">Attività</h1>
           <p className="text-muted-foreground">
             Tutte le tue attività di corsa e sessioni di allenamento
           </p>
@@ -181,51 +180,9 @@ export default function Activities() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-foreground">Attività</h1>
-          <p className="text-muted-foreground">
-            Tutte le tue attività di corsa e sessioni di allenamento
-          </p>
-          <p className="text-xs text-muted-foreground">
-            <b>Totale attività nel database: {total}</b>
-          </p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button 
-            onClick={handleSync} 
-            disabled={isSyncing}
-            variant="outline" 
-            className="flex items-center gap-2"
-          >
-            {isSyncing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Sincronizzazione...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4" />
-                Sync Strava
-              </>
-            )}
-          </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <Download className="h-4 w-4" />
-            Esporta Dati
-          </Button>
-          <Button onClick={handleLoadAll} disabled={loadingAll} variant="outline" className="flex items-center gap-2">
-            {loadingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-            Carica tutte
-          </Button>
         </div>
       </div>
 
-      {/* Paginazione */}
-      {!allLoaded && (
-        <div className="flex gap-2 items-center justify-end">
-          <Button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} size="sm" variant="outline">Indietro</Button>
-          <span className="text-sm">Pagina {page + 1} / {Math.ceil(total / PAGE_SIZE) || 1}</span>
-          <Button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE_SIZE >= total} size="sm" variant="outline">Avanti</Button>
-        </div>
-      )}
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-6">
@@ -304,13 +261,7 @@ export default function Activities() {
       </div>
 
       {/* Filters */}
-      <Card className="bg-gradient-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filtri
-          </CardTitle>
-        </CardHeader>
+      <Card className="bg-gradient-card pt-6">
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
@@ -333,17 +284,26 @@ export default function Activities() {
                 <SelectItem value="run">Corsa</SelectItem>
                 <SelectItem value="ride">Bici</SelectItem>
                 <SelectItem value="walk">Camminata</SelectItem>
+                <SelectItem value="tennis">Tennis</SelectItem>
               </SelectContent>
             </Select>
+             {/* Paginazione */}
+              {!allLoaded && (
+                  <div className="flex gap-3 items-center justify-end">
+                    <Button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} size="sm" variant="outline">Indietro</Button>
+                    <span className="text-sm">Pagina {page + 1} / {Math.ceil(total / PAGE_SIZE) || 1}</span>
+                    <Button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE_SIZE >= total} size="sm" variant="outline">Avanti</Button>
+                  </div>
+                )}
           </div>
         </CardContent>
       </Card>
+      
+
+
 
       {/* Activities Table */}
       <Card className="bg-gradient-card">
-        <CardHeader>
-          <CardTitle>Attività Recenti ({filteredActivities.length})</CardTitle>
-        </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
@@ -389,7 +349,8 @@ export default function Activities() {
                       </TableCell>
                       <TableCell>
                         <Badge className={getTypeColor(activity.type)}>
-                          {activity.type}
+                          {/* Mostra 'Tennis' se il tipo è workout */}
+                          {mapActivityType(activity.type) === "tennis" ? "Tennis" : activity.type}
                         </Badge>
                       </TableCell>
                       <TableCell>

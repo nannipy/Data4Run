@@ -17,7 +17,24 @@ export const useAuth = () => {
     error: userError,
   } = useQuery({
     queryKey: ['user', userId],
-    queryFn: () => apiService.getUser(userId!),
+    queryFn: async () => {
+      let attempts = 0;
+      let lastError;
+      while (attempts < 3) {
+        try {
+          return await apiService.getUser(userId!);
+        } catch (err: any) {
+          lastError = err;
+          if (err.message && err.message.includes('500')) {
+            attempts++;
+            await new Promise(res => setTimeout(res, 500));
+          } else {
+            throw err;
+          }
+        }
+      }
+      throw lastError;
+    },
     enabled: !!userId,
   });
 
@@ -25,9 +42,11 @@ export const useAuth = () => {
   const stravaCallbackMutation = useMutation({
     mutationFn: (code: string) => apiService.handleStravaCallback(code),
     onSuccess: (data) => {
-      setUserId(data.user_id);
-      localStorage.setItem('userId', data.user_id.toString());
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      setTimeout(() => {
+        setUserId(data.user_id);
+        localStorage.setItem('userId', data.user_id.toString());
+        queryClient.invalidateQueries({ queryKey: ['user'] });
+      }, 1000); // 1 secondo di delay
     },
   });
 
@@ -62,7 +81,10 @@ export const useAuth = () => {
     
     if (code && !userId) {
       handleStravaCallback(code).then(() => {
-        // Rimuovi il codice dall'URL
+        // Rimuovi il codice dall'URL dopo il primo tentativo
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }).catch(() => {
+        // Anche in caso di errore, rimuovi il code per evitare loop
         window.history.replaceState({}, document.title, window.location.pathname);
       });
     }

@@ -66,7 +66,7 @@ export const useActivities = (userId: number | null, periodTrendsRun: string = '
 
   // Mutation per sincronizzare le attività
   const syncMutation = useMutation({
-    mutationFn: (afterDate?: string) => apiService.syncActivities(userId!, afterDate),
+    mutationFn: () => apiService.syncActivities(userId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', userId] });
       queryClient.invalidateQueries({ queryKey: ['stats', userId] });
@@ -74,36 +74,8 @@ export const useActivities = (userId: number | null, periodTrendsRun: string = '
     },
   });
 
-  // Mutation per sincronizzazione intelligente
-  const syncSmartMutation = useMutation({
-    mutationFn: () => apiService.syncActivitiesSmart(userId!),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activities', userId] });
-      queryClient.invalidateQueries({ queryKey: ['stats', userId] });
-      queryClient.invalidateQueries({ queryKey: ['trends', userId] });
-    },
-  });
-
-  // Mutation per estendere la sincronizzazione
-  const syncExtendMutation = useMutation({
-    mutationFn: (monthsBack: number) => apiService.syncActivitiesExtend(userId!, monthsBack),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['activities', userId] });
-      queryClient.invalidateQueries({ queryKey: ['stats', userId] });
-      queryClient.invalidateQueries({ queryKey: ['trends', userId] });
-    },
-  });
-
-  const syncActivities = (afterDate?: string) => {
-    return syncMutation.mutateAsync(afterDate);
-  };
-
-  const syncActivitiesSmart = () => {
-    return syncSmartMutation.mutateAsync();
-  };
-
-  const syncActivitiesExtend = (monthsBack: number = 12) => {
-    return syncExtendMutation.mutateAsync(monthsBack);
+  const syncActivities = () => {
+    return syncMutation.mutateAsync();
   };
 
   return {
@@ -129,10 +101,8 @@ export const useActivities = (userId: number | null, periodTrendsRun: string = '
     trendsRunError,
     refetchTrendsRun,
     syncActivities,
-    syncActivitiesSmart,
-    syncActivitiesExtend,
-    isSyncing: syncMutation.isPending || syncSmartMutation.isPending || syncExtendMutation.isPending,
-    syncError: syncMutation.error || syncSmartMutation.error || syncExtendMutation.error,
+    isSyncing: syncMutation.isPending,
+    syncError: syncMutation.error,
   };
 };
 
