@@ -5,6 +5,7 @@ export interface User {
   strava_id: number;
   first_name: string;
   last_name: string;
+  strava_profile_url?: string;
   profile_picture_url?: string;
   last_sync_timestamp?: string;
 }
@@ -199,6 +200,40 @@ class ApiService {
   // Health check
   async healthCheck(): Promise<{ status: string }> {
     return this.request('/health');
+  }
+
+  // User settings and profile endpoints
+  async updateProfileImage(userId: number, formData: FormData): Promise<{ message: string; profile_picture_url: string }> {
+    const url = `${API_BASE_URL}/auth/user/${userId}/profile-image`;
+    console.log('[API] Upload profile image:', url);
+    
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      // Non includere Content-Type per FormData, il browser lo imposterà automaticamente
+    });
+
+    let responseBody;
+    try {
+      responseBody = await response.clone().json();
+    } catch (e) {
+      responseBody = null;
+    }
+    console.log('[API] Response:', response.status, response.statusText, responseBody);
+
+    if (!response.ok) {
+      console.error('[API] Error:', response.status, response.statusText, responseBody);
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${JSON.stringify(responseBody)}`);
+    }
+
+    return responseBody;
+  }
+
+  async updateUserSettings(userId: number, settings: any): Promise<{ message: string }> {
+    return this.request(`/auth/user/${userId}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
   }
 }
 

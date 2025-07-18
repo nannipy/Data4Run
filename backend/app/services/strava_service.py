@@ -10,6 +10,13 @@ from app.schemas.user import UserCreate, UserUpdate
 from app.core.config import settings
 
 
+class StravaRateLimitError(Exception):
+    """Eccezione personalizzata per errori di rate limit"""
+    def __init__(self, message: str, retry_after: Optional[int] = None):
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
 class StravaService:
     def __init__(self):
         self.client = Client()
@@ -88,10 +95,15 @@ class StravaService:
                 'total_activities': len(activities)
             }
             
-        except RateLimitExceeded:
+        except RateLimitExceeded as e:
             db.rollback()
-            print("[SYNC][ERRORE] Rate limit exceeded per Strava API")
-            raise Exception("Rate limit exceeded for Strava API")
+            print(f"[SYNC][ERRORE] Rate limit exceeded per Strava API: {str(e)}")
+            # Estrai il timeout dall'eccezione se disponibile
+            retry_after = getattr(e, 'timeout', None)
+            raise StravaRateLimitError(
+                f"Rate limit exceeded for Strava API. Retry after {retry_after} seconds." if retry_after else "Rate limit exceeded for Strava API.",
+                retry_after
+            )
         except Exception as e:
             db.rollback()
             print(f"[SYNC][ERRORE] Errore durante la sync: {str(e)}")

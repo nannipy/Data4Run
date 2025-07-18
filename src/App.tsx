@@ -9,6 +9,7 @@ import Trends from "./pages/Trends";
 import Performance from "./pages/Performance";
 import RoutesPage from "./pages/Routes";
 import Calendar from "./pages/Calendar";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
 import AuthCallback from "./pages/AuthCallback";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/performance" element={<Layout><Performance /></Layout>} />
           <Route path="/routes" element={<Layout><RoutesPage /></Layout>} />
           <Route path="/calendar" element={<Layout><Calendar /></Layout>} />
+          <Route path="/settings" element={<Layout><Settings /></Layout>} />
           <Route path="/auth/strava/callback" element={<AuthCallback />} />
           <Route path="/activity/:id" element={<Layout><ActivityDetail /></Layout>} />
           <Route path="/auth/callback" element={<AuthCallback />} />

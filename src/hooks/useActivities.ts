@@ -64,13 +64,27 @@ export const useActivities = (userId: number | null, periodTrendsRun: string = '
     enabled: !!userId,
   });
 
-  // Mutation per sincronizzare le attività
+  // Mutation per sincronizzare le attività con gestione errori
   const syncMutation = useMutation({
-    mutationFn: () => apiService.syncActivities(userId!),
+    mutationFn: async () => {
+      if (!userId) throw new Error('User ID non valido');
+      
+      try {
+        return await apiService.syncActivities(userId);
+      } catch (error: any) {
+        // Gestisci specificamente gli errori di rate limit
+        if (error?.response?.status === 429) {
+          const retryAfter = error.response?.data?.retry_after_seconds || 60;
+          throw new Error(`Rate limit raggiunto. Riprova tra ${retryAfter} secondi.`);
+        }
+        throw error;
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activities', userId] });
       queryClient.invalidateQueries({ queryKey: ['stats', userId] });
       queryClient.invalidateQueries({ queryKey: ['trends', userId] });
+      queryClient.invalidateQueries({ queryKey: ['user', userId] });
     },
   });
 

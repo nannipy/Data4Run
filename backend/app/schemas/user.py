@@ -7,7 +7,7 @@ class UserBase(BaseModel):
     strava_id: int
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    profile_picture_url: Optional[str] = None
+    strava_profile_url: Optional[str] = None
 
 
 class UserCreate(UserBase):

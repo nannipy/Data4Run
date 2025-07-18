@@ -17,7 +17,8 @@ import {
   Target,
   MapPin,
   Calendar,
-  Trophy
+  Trophy,
+  Settings
 } from "lucide-react";
 
 const mainNavItems = [
@@ -31,6 +32,10 @@ const analysisItems = [
   { title: "Performance", url: "/performance", icon: Trophy },
   { title: "Routes", url: "/routes", icon: MapPin },
   { title: "Calendar", url: "/calendar", icon: Calendar },
+];
+
+const settingsItems = [
+  { title: "Impostazioni", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -81,6 +86,26 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {analysisItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild className="mb-1">
+                    <NavLink to={item.url} className={getNavClassName(item.url)}>
+                      <item.icon className="h-4 w-4" />
+                      {state !== "collapsed" && <span>{item.title}</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Account
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {settingsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild className="mb-1">
                     <NavLink to={item.url} className={getNavClassName(item.url)}>

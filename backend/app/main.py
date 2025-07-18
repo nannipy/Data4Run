@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api import auth_router, activities_router, mock_router
 from app.db.database import engine
 from app.models import Base
+import os
 
 # Crea le tabelle del database
 Base.metadata.create_all(bind=engine)
@@ -24,6 +26,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Crea la directory per i file statici se non esiste
+os.makedirs("uploads/profile_images", exist_ok=True)
+
+# Monta i file statici
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Includi i router
 app.include_router(auth_router)

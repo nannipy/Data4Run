@@ -23,10 +23,12 @@ import {
   Trophy,
   Loader2,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useActivities } from "@/hooks/useActivities";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { formatDistance, formatDuration, formatPace, haversine, formatRecordTime, getBestTimeForDistance } from "@/lib/utils"
 import { format, addMonths, subMonths } from "date-fns";
 import { it } from "date-fns/locale";
@@ -47,7 +49,7 @@ const chartConfig = {
 };
 
 export default function Dashboard() {
-  const { user, isLoadingUser, userError } = useAuth();
+  const { user, isLoadingUser, userError, isAutoSyncing, lastSyncError, performSync } = useAuth();
   const { 
     activities, 
     statsRun,
@@ -55,7 +57,8 @@ export default function Dashboard() {
     trendsRun,
     isLoadingTrendsRun,
     syncActivities,
-    isSyncing
+    isSyncing,
+    syncError
   } = useActivities(user?.id || null, 'year');
   
 
@@ -65,6 +68,13 @@ export default function Dashboard() {
       await syncActivities();
     } catch (error) {
       console.error('Error syncing all activities:', error);
+    }
+  };
+
+  // Funzione per sincronizzare manualmente
+  const handleManualSync = async () => {
+    if (user?.id) {
+      await performSync(user.id, 'manual');
     }
   };
 
@@ -302,10 +312,10 @@ export default function Dashboard() {
             Le tue analisi di corsa e insight sulle performance
           </p>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2 flex-wrap items-center">
           <Button 
             onClick={handleSyncAll} 
-            disabled={isSyncing}
+            disabled={isSyncing || isAutoSyncing || (lastSyncError && lastSyncError.includes('Rate limit'))}
             variant="outline"
             size="sm"
           >
@@ -321,6 +331,12 @@ export default function Dashboard() {
               </>
             )}
           </Button>
+          {isAutoSyncing && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Sincronizzazione automatica in corso...</span>
+            </div>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -345,6 +361,29 @@ export default function Dashboard() {
           />
         </div>
       </div>
+
+      {/* Error Messages */}
+      {(lastSyncError || syncError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Errore di Sincronizzazione</AlertTitle>
+          <AlertDescription>
+            {lastSyncError || syncError?.message || 'Errore durante la sincronizzazione'}
+            {lastSyncError && (
+              <div className="mt-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleManualSync}
+                  disabled={isSyncing || isAutoSyncing}
+                >
+                  Riprova
+                </Button>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Key Metrics */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">

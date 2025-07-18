@@ -4,7 +4,7 @@ from sqlalchemy import desc, asc
 from datetime import datetime, timedelta
 from typing import List, Optional
 from app.db.database import get_db
-from app.services.strava_service import StravaService
+from app.services.strava_service import StravaService, StravaRateLimitError
 from app.models.user import User
 from app.models.activity import Activity, Lap
 from app.schemas.activity import Activity as ActivitySchema, ActivityWithLaps
@@ -39,6 +39,18 @@ async def sync_activities(
             "sync_result": sync_result
         }
         
+    except StravaRateLimitError as e:
+        # Gestisci specificamente l'errore di rate limit
+        retry_after = e.retry_after or 60  # Default a 60 secondi se non specificato
+        raise HTTPException(
+            status_code=429, 
+            detail={
+                "error": "Rate limit exceeded",
+                "message": str(e),
+                "retry_after": retry_after,
+                "retry_after_seconds": retry_after
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Sync failed: {str(e)}")
 
@@ -83,6 +95,18 @@ async def sync_activities_smart(
                 "sync_result": sync_result
             }
         
+    except StravaRateLimitError as e:
+        # Gestisci specificamente l'errore di rate limit
+        retry_after = e.retry_after or 60  # Default a 60 secondi se non specificato
+        raise HTTPException(
+            status_code=429, 
+            detail={
+                "error": "Rate limit exceeded",
+                "message": str(e),
+                "retry_after": retry_after,
+                "retry_after_seconds": retry_after
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Smart sync failed: {str(e)}")
 
@@ -130,6 +154,18 @@ async def sync_activities_extend(
                 "sync_result": sync_result
             }
         
+    except StravaRateLimitError as e:
+        # Gestisci specificamente l'errore di rate limit
+        retry_after = e.retry_after or 60  # Default a 60 secondi se non specificato
+        raise HTTPException(
+            status_code=429, 
+            detail={
+                "error": "Rate limit exceeded",
+                "message": str(e),
+                "retry_after": retry_after,
+                "retry_after_seconds": retry_after
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Extend sync failed: {str(e)}")
 
