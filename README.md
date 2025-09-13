@@ -1,5 +1,5 @@
 <div align="center">
-   <h1>Strava Run Analyzer</h1>
+   <h1>FOXRUN</h1>
 </div>
 
 <img src="public/foxrun-logo.png" alt="Fox Run Analyzer Logo" width="100" height="100" style="display: block; margin: auto;" />
