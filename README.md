@@ -1,4 +1,8 @@
-# Strava Run Analyzer
+<div align="center">
+   <h1>Strava Run Analyzer</h1>
+</div>
+
+<img src="public/foxrun-logo.png" alt="Fox Run Analyzer Logo" width="100" height="100" style="display: block; margin: auto;" />
 
 Un'applicazione web full-stack per analizzare le performance di corsa utilizzando i dati di Strava.
 
@@ -185,6 +189,64 @@ npm test
 3. Commit le modifiche (`git commit -m 'Add some AmazingFeature'`)
 4. Push al branch (`git push origin feature/AmazingFeature`)
 5. Apri una Pull Request
+
+## 🚀 Deployment su Vercel
+
+### Prerequisiti
+- Account Vercel
+- Repository GitHub/GitLab con il codice
+- Backend deployato (FastAPI su Vercel, Railway, o altro servizio)
+
+### Configurazione Variabili d'Ambiente
+
+1. **Copia il file `env.example` in `.env`**:
+```bash
+cp env.example .env
+```
+
+2. **Configura le variabili d'ambiente su Vercel**:
+   - Vai su [Vercel Dashboard](https://vercel.com/dashboard)
+   - Seleziona il tuo progetto
+   - Vai su "Settings" → "Environment Variables"
+   - Aggiungi le seguenti variabili:
+
+```env
+VITE_API_URL=https://your-backend-url.vercel.app
+VITE_STRAVA_CLIENT_ID=your_strava_client_id
+VITE_STRAVA_REDIRECT_URI=https://your-frontend-url.vercel.app/auth/callback
+VITE_USE_MOCK_DATA=false
+```
+
+### Deployment
+
+1. **Connetti il repository a Vercel**:
+   - Vai su [Vercel Dashboard](https://vercel.com/dashboard)
+   - Clicca "New Project"
+   - Importa il repository GitHub/GitLab
+   - Vercel rileverà automaticamente che è un progetto Vite
+
+2. **Configura il build**:
+   - Framework Preset: Vite
+   - Build Command: `npm run build`
+   - Output Directory: `dist`
+   - Install Command: `npm install`
+
+3. **Deploy**:
+   - Clicca "Deploy"
+   - Vercel buildera e deployerà automaticamente l'applicazione
+
+### Configurazione Strava
+
+Dopo il deployment, aggiorna l'URL di redirect su Strava:
+1. Vai su [Strava API Settings](https://www.strava.com/settings/api)
+2. Cambia l'URL di redirect da `http://localhost:3000/auth/callback` a `https://your-domain.vercel.app/auth/callback`
+
+### Note Importanti
+
+- **Backend**: Assicurati che il backend sia deployato e accessibile
+- **CORS**: Il backend deve permettere richieste dal dominio Vercel
+- **HTTPS**: Vercel fornisce automaticamente HTTPS
+- **Environment Variables**: Configura tutte le variabili necessarie su Vercel
 
 ## 📄 Licenza
 
